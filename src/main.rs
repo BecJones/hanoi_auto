@@ -1,3 +1,13 @@
+/**
+ * Towers of Hanoi - Automatic Solver with No Recursive Functions
+ * Becquerel Jones
+ * 2020-09-02
+ * Language: Rust
+ * System: Debian Linux, 64-Bit
+ * Editor: Vim
+ */
+
+
 use std::mem;
 use core::mem::swap;
 
