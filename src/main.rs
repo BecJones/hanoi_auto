@@ -1,5 +1,8 @@
 /**
- * Towers of Hanoi - Automatic Solver with No Recursive Functions
+ * Towers of Hanoi - Solvers:
+ *      Non-recursive
+ *      Recursive
+ *      Interactive
  * Becquerel Jones
  * 2020-09-02
  * Language: Rust
@@ -8,6 +11,9 @@
  */
 
 
+use std::env;
+use std::io;
+use std::io::Write;
 use std::mem;
 use core::mem::swap;
 
@@ -205,18 +211,46 @@ impl Tower {
 
 fn main() {
 
+    let usage: String = String::from("Usage:\nhanoi_auto STACK_SIZE SOLUTION_TYPE\nExample:\nhanoi_auto 10 n\nSolution types:\nn: Non-recursive\nr: Recursive\ni: Interactive");
+
+    let args: Vec<String> = env::args().collect();
+    let stack_size: usize = args[1].trim().parse().expect(&usage);
+    let sol_type: String = String::from(&args[2]);
+
     const PRINT_BOARD: bool = false;
     const PRINT_CONCISE: bool = false;
-    const STACK_SIZE: usize = 2000;
 
-    let mut counter: Counter = Counter::new(STACK_SIZE);
-
-    let mut a: Tower = Tower::full("A", STACK_SIZE);
+    let mut a: Tower = Tower::full("A", stack_size);
     let mut b: Tower = Tower::empty("B");
     let mut c: Tower = Tower::empty("C");
 
-    while c.count() < STACK_SIZE {
-        if PRINT_BOARD {
+    match sol_type.trim() {
+        "n" => { 
+            solve_nr(&mut a, &mut b, &mut c,
+                     &stack_size, &PRINT_BOARD, &PRINT_CONCISE);
+        },
+        "r" => {
+            solve_r(&mut a, &mut b, &mut c, &PRINT_BOARD);
+        },
+        "i" => {
+            solve_int(&mut a, &mut b, &mut c, &stack_size);
+        },
+        _ => {
+            println!("{}", usage);
+        },
+    }
+}
+
+
+// Solve non-recursively
+fn solve_nr(mut a: &mut Tower, mut b: &mut Tower, mut c: &mut Tower,
+            stack_size: &usize,
+            print_board: &bool, print_concise: &bool) {
+    
+    let mut counter: Counter = Counter::new(*stack_size);
+
+    while c.count() < *stack_size {
+        if *print_board {
             display_towers(&a, &b, &c);
             if !a.is_valid() { println!("A Invalid!"); }
             if !b.is_valid() { println!("B Invalid!"); }
@@ -229,10 +263,10 @@ fn main() {
             Disc::Disc { index, .. } => {
                 if *index == counter.last_rollover {
                     if *index == 0 || a.can_move(&b) {
-                        if PRINT_CONCISE { println!("{}: A -> B", *index); }
+                        if *print_concise { println!("{}: A -> B", *index); }
                         a.move_to(&mut b);
                     } else {
-                        if PRINT_CONCISE { println!("{}: A -> C", *index); }
+                        if *print_concise { println!("{}: A -> C", *index); }
                         a.move_to(&mut c);
                     }
                     continue;
@@ -245,11 +279,11 @@ fn main() {
             Disc::Disc { index, .. } => {
                 if *index == counter.last_rollover {
                     if *index == 0 || b.can_move(&c) {
-                        if PRINT_CONCISE { println!("{}: B -> C", *index); }
+                        if *print_concise { println!("{}: B -> C", *index); }
                         b.move_to(&mut c);
 
                     } else {
-                        if PRINT_CONCISE { println!("{}: B -> A", *index); }
+                        if *print_concise { println!("{}: B -> A", *index); }
                         b.move_to(&mut a);
                     }
                     continue;
@@ -262,10 +296,10 @@ fn main() {
             Disc::Disc { index, .. } => {
                 if *index == counter.last_rollover {
                     if *index == 0 || c.can_move(&a) {
-                        if PRINT_CONCISE { println!("{}: C -> A", *index); }
+                        if *print_concise { println!("{}: C -> A", *index); }
                         c.move_to(&mut a);
                     } else {
-                        if PRINT_CONCISE { println!("{}: C -> B", *index); }
+                        if *print_concise { println!("{}: C -> B", *index); }
                         c.move_to(&mut b);
                     }
                     continue;
@@ -282,10 +316,141 @@ fn main() {
 }
 
 
+// Solve recursively
+fn solve_r(mut src: &mut Tower, mut mid: &mut Tower, mut dst: &mut Tower,
+           print_board: &bool) {
+    loop {
+        match src.peek() {
+            Disc::Disc { .. } => {
+                solve_r(&mut dst, &mut src, &mut mid,
+                        &print_board);
+                src.move_to(&mut dst);
+                solve_r(&mut mid, &mut src, &mut dst,
+                        &print_board);
+            },
+            Disc::Plate => { break; },
+        }
+    }
+    if *print_board {
+        display_towers(&src, &mid, &dst);
+        if !src.is_valid() { println!("{} Invalid!", src.name); }
+        if !mid.is_valid() { println!("{} Invalid!", mid.name); }
+        if !dst.is_valid() { println!("{} Invalid!", dst.name); }
+    }
+}
+
+
+// Solve interactively
+fn solve_int(mut a: &mut Tower, mut b: &mut Tower, mut c: &mut Tower,
+             stack_size: &usize) {
+    let mut src_buffer: String;
+    let mut dst_buffer: String;
+    while c.count() < *stack_size {
+        src_buffer = String::new();
+        dst_buffer = String::new();
+
+        display_towers(&a, &b, &c);
+        print!("Select source stack or [Q]uit [");
+        match a.peek() {
+            Disc::Disc { .. } => { 
+                print!("A, "); 
+            },
+            Disc::Plate => { print!("X, "); },
+        }
+        match b.peek() {
+            Disc::Disc { .. } => { 
+                print!("B, ");
+            },
+            Disc::Plate => { print!("X, "); },
+        }
+        match c.peek() {
+            Disc::Disc { .. } => {
+                print!("C]: ");
+            },
+            Disc::Plate => { print!("X]: "); },
+        }
+        io::stdout().flush().expect("Flush error. :^(");
+        io::stdin().read_line(&mut src_buffer).expect("Input error. :^(");
+        match src_buffer.trim() {
+            "A" => {
+                print!("Select destination stack or [Q]uit [");
+                if a.can_move(&b) {
+                    print!("B, ");
+                } else {
+                    print!("X, ");
+                }
+                if a.can_move(&c) {
+                    print!("C]: ");
+                } else {
+                    print!("X]: ");
+                }
+                io::stdout().flush().expect("Flush error. :^(");
+                io::stdin().read_line(&mut dst_buffer).expect("Input error. :^(");
+                match dst_buffer.trim() {
+                    "B" => { a.move_to(&mut b); },
+                    "C" => { a.move_to(&mut c); },
+                    "Q" => { return; },
+                    _ => { continue; },
+                }
+            },
+            "B" => {
+                print!("Select destination stack or [Q]uit [");
+                if b.can_move(&a) {
+                    print!("A, ");
+                } else {
+                    print!("X, ");
+                }
+                if b.can_move(&c) {
+                    print!("C]: ");
+                } else {
+                    print!("X]: ");
+                }
+                io::stdout().flush().expect("Flush error. :^(");
+                io::stdin().read_line(&mut dst_buffer).expect("Input error. :^(");
+                match dst_buffer.trim() {
+                    "A" => { b.move_to(&mut a); },
+                    "C" => { b.move_to(&mut c); },
+                    "Q" => { return; },
+                    _ => { continue; },
+                }
+            },
+            "C" => {
+                print!("Select destination stack or [Q]uit [");
+                if c.can_move(&a) {
+                    print!("A, ");
+                } else {
+                    print!("X, ");
+                }
+                if c.can_move(&b) {
+                    print!("B]: ");
+                } else {
+                    print!("X]: ");
+                }
+                io::stdout().flush().expect("Flush error. :^(");
+                io::stdin().read_line(&mut dst_buffer).expect("Input error. :^(");
+                match dst_buffer.trim() {
+                    "A" => { c.move_to(&mut a); },
+                    "B" => { c.move_to(&mut b); },
+                    "Q" => { return; },
+                    _ => { continue; },
+                }
+            },
+            "Q" => {
+                return;
+            },
+            _ => {
+                continue;
+            },
+        }
+    }
+}
+
+
+// Print all towers
 fn display_towers(a: &Tower, b: &Tower, c: &Tower) {
     let mut discs: [&Disc; 3] = [&a.stack, &b.stack, &c.stack];
     let mut plates: usize;
-    println!("{:<12}|{:<12}|{:<12}", "A:", "B:", "C:");
+    println!("{:<12}|{:<12}|{:<12}", a.name, b.name, c.name);
     loop {
         plates = 0;
         match discs[0] {
