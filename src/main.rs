@@ -132,7 +132,7 @@ impl Tower {
 
     fn move_to(&mut self, other: &mut Tower) {
         if !self.can_move(other) {
-            println!("Error! Illegal move!");
+            println!("Error! Illegal move! {}({}) -> {}({})", self.name, self.print_stack(), other.name, other.print_stack());
         }
         let opt: Option<Box<Disc>> = self.pop();
         match opt {
@@ -140,6 +140,18 @@ impl Tower {
                 other.push(disc);
             },
             None => { },
+        }
+    }
+
+
+    fn print_stack(&self) -> String {
+        match *self.stack {
+            Disc::Disc { ref index, .. } => {
+                return format!("{}", *index);
+            },
+            Disc::Plate => {
+                return String::from("Plate");
+            },
         }
     }
 
@@ -168,8 +180,8 @@ impl Tower {
                 Disc::Disc { ref index, ref next } => {
                     let smaller: usize = *index;
                     match **next {
-                        Disc::Disc { index, .. } => {
-                            if smaller >= index {
+                        Disc::Disc { ref index, .. } => {
+                            if smaller >= *index {
                                 return false;
                             }
                         },
@@ -190,10 +202,10 @@ impl Tower {
 
     fn can_move(&self, other: &Tower) -> bool {
         match self.peek() {
-            Disc::Disc { index, .. } => {
+            Disc::Disc { ref index, .. } => {
                 let smaller: usize = *index;
                 match other.peek() {
-                    Disc::Disc { index, .. } => {
+                    Disc::Disc { ref index, .. } => {
                         return smaller < *index;
                     },
                     Disc::Plate => {
@@ -217,7 +229,7 @@ fn main() {
     let stack_size: usize = args[1].trim().parse().expect(&usage);
     let sol_type: String = String::from(&args[2]);
 
-    const PRINT_BOARD: bool = false;
+    const PRINT_BOARD: bool = true;
     const PRINT_CONCISE: bool = false;
 
     let mut a: Tower = Tower::full("A", stack_size);
@@ -230,7 +242,7 @@ fn main() {
                      &stack_size, &PRINT_BOARD, &PRINT_CONCISE);
         },
         "r" => {
-            solve_r(&mut a, &mut b, &mut c, &PRINT_BOARD);
+            solve_r(&mut a, &mut b, &mut c, &stack_size, &PRINT_BOARD);
         },
         "i" => {
             solve_int(&mut a, &mut b, &mut c, &stack_size);
@@ -318,24 +330,27 @@ fn solve_nr(mut a: &mut Tower, mut b: &mut Tower, mut c: &mut Tower,
 
 // Solve recursively
 fn solve_r(mut src: &mut Tower, mut mid: &mut Tower, mut dst: &mut Tower,
-           print_board: &bool) {
-    loop {
-        match src.peek() {
-            Disc::Disc { .. } => {
-                solve_r(&mut dst, &mut src, &mut mid,
-                        &print_board);
-                src.move_to(&mut dst);
-                solve_r(&mut mid, &mut src, &mut dst,
-                        &print_board);
-            },
-            Disc::Plate => { break; },
+           stack_size: &usize, print_board: &bool) {
+    if *stack_size == 1 {
+        src.move_to(&mut dst);
+        if *print_board {
+            display_towers(&src, &mid, &dst);
+            if !src.is_valid() { println!("{} Invalid!", src.name); }
+            if !mid.is_valid() { println!("{} Invalid!", mid.name); }
+            if !dst.is_valid() { println!("{} Invalid!", dst.name); }
         }
-    }
-    if *print_board {
-        display_towers(&src, &mid, &dst);
-        if !src.is_valid() { println!("{} Invalid!", src.name); }
-        if !mid.is_valid() { println!("{} Invalid!", mid.name); }
-        if !dst.is_valid() { println!("{} Invalid!", dst.name); }
+    } else {
+        let next_stack: usize = *stack_size - 1;
+        let next_print: bool = *print_board;
+        solve_r(&mut src, &mut dst, &mut mid, &next_stack, &next_print);
+        src.move_to(&mut dst);
+        if *print_board {
+            display_towers(&src, &mid, &dst);
+            if !src.is_valid() { println!("{} Invalid!", src.name); }
+            if !mid.is_valid() { println!("{} Invalid!", mid.name); }
+            if !dst.is_valid() { println!("{} Invalid!", dst.name); }
+        }
+        solve_r(&mut mid, &mut src, &mut dst, &next_stack, &next_print);
     }
 }
 
